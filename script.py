@@ -8,6 +8,9 @@ from email.message import EmailMessage
 
 from dotenv import load_dotenv
 
+logging.basicConfig(
+    format="%(levelname)s:%(asctime)s:%(name)s: %(message)s", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -19,7 +22,7 @@ EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
 
 
 def get_email_number_map(csv_path) -> dict:
-    logging.info(f"Creating email_number_map from {csv_path} file.")
+    logger.info(f"Creating email_number_map from {csv_path} file.")
     email_number_map = {}
     with open(file=csv_path, encoding="utf-8") as csvfile:
         email_reader = csv.reader(csvfile)
@@ -30,7 +33,7 @@ def get_email_number_map(csv_path) -> dict:
 
 
 def find_photos_paths(number: str, basepath: str) -> list:
-    logging.info(f"Finding photos for number: {number}, in {basepath} directory.")
+    logger.info(f"Finding photos for number: {number}, in {basepath} directory.")
     return [
         filename for filename in os.listdir(basepath) if filename.startswith(number)
     ]
@@ -47,34 +50,45 @@ def prepare_message(recipient_email: str, attachment_filepaths: str) -> EmailMes
         if ctype is None or encoding is not None:
             ctype = "application/octet-stream"
         maintype, subtype = ctype.split("/", 1)
-
+        filename = attachment_filepath.split("/")[-1]
         with open(attachment_filepath, "rb") as fp:
-            logger.info(f"Adding attachment: {attachment_filepath} to the message.")
+            logger.info(f"Adding attachment: {filename} to the message.")
             msg.add_attachment(
                 fp.read(),
                 maintype=maintype,
                 subtype=subtype,
-                filename=attachment_filepath,
+                filename=filename,
             )
     return msg
 
 
 def send_message(message):
-    logging.info(f"Sending message to {message['To']}.")
+    logger.info(f"Sending message to {message['To']}.")
     context = ssl.create_default_context()
     with smtplib.SMTP(SERVER_ADDRESS, SERVER_PORT) as smtp:
-        smtp.ehlo()  # Say EHLO to server
-        smtp.starttls(context=context)  # Puts the connection in TLS mode.
+        smtp.ehlo()
+        smtp.starttls(context=context)
         smtp.ehlo()
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(message)
+    logger.info(f"Message to {message['To']} sent!")
 
 
-def main():
-    email_number_map = get_email_number_map(csv_path="22032022.csv")
+def main(csv_path: str, basepath: str):
+    email_number_map = get_email_number_map(csv_path=csv_path)
     for email, number in email_number_map.items():
-        photos_paths = find_photos_paths(number=number, basepath=".")
+        full_paths = [
+            os.path.join(basepath, photo_path)
+            for photo_path in find_photos_paths(number=number, basepath=basepath)
+        ]
         email_message = prepare_message(
-            recipient_email=email, attachment_filepaths=photos_paths
+            recipient_email=email, attachment_filepaths=full_paths
         )
         send_message(message=email_message)
+
+
+if __name__ == "__main__":
+    main(
+        csv_path="test.csv",
+        basepath="/mnt/d/Marcin/Pictures/zdjecia-do-dokumentow/test",
+    )
