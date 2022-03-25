@@ -34,8 +34,12 @@ def get_email_number_map(csv_path) -> dict:
 
 def find_photos_paths(number: str, basepath: str) -> list:
     logger.info(f"Finding photos for number: {number}, in {basepath} directory.")
+    delimiter_position = len(number)
+    delimiters = [".", "_"]
     return [
-        filename for filename in os.listdir(basepath) if filename.startswith(number)
+        filename
+        for filename in os.listdir(basepath)
+        if filename.startswith(number) and filename[delimiter_position] in delimiters
     ]
 
 
@@ -81,6 +85,8 @@ def main(csv_path: str, basepath: str):
             os.path.join(basepath, photo_path)
             for photo_path in find_photos_paths(number=number, basepath=basepath)
         ]
+        if not full_paths:  # in case there is no file for the number
+            continue
         email_message = prepare_message(
             recipient_email=email, attachment_filepaths=full_paths
         )
@@ -89,6 +95,6 @@ def main(csv_path: str, basepath: str):
 
 if __name__ == "__main__":
     main(
-        csv_path="test.csv",
-        basepath="/mnt/d/Marcin/Pictures/zdjecia-do-dokumentow/test",
+        csv_path="22032022.csv",
+        basepath="/mnt/d/Marcin/Pictures/zdjecia-do-dokumentow/20220322",
     )
